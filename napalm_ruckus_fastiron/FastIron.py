@@ -1337,11 +1337,11 @@ class FastIronDriver(NetworkDriver):
             n_line = FastIronDriver.__creates_list_of_nlines(output)
 
             if cmd == 'show running-config':
-                config_dic.update({'running': n_line})
+                config_dic.update({'running': '\n'.join(n_line)})
             elif cmd == '':
-                config_dic.update({'candidate': n_line})
+                config_dic.update({'candidate': '\n'.join(n_line)})
             else:
-                config_dic.update({'startup': n_line})
+                config_dic.update({'startup': '\n'.join(n_line)})
 
         return config_dic
 
