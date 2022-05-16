@@ -21,7 +21,7 @@ from __future__ import unicode_literals
 from netmiko import ConnectHandler
 import socket
 import sys
-# import re
+import re
 
 # local modules
 # import napalm.base.exceptions
@@ -898,6 +898,48 @@ class FastIronDriver(NetworkDriver):
 
         return interface_counters
 
+    def get_lldp_neighbor_detail(self, interface=''):
+        if 'ethernet' not in interface:
+            interface = 'ethernet ' + interface
+        output = self.device.send_command('show lldp neighbor detail port ' + interface)
+        output = output.replace(':', ' ')
+        output = output.replace('"', '')
+        output = (output.replace('+', ' '))
+
+        if "No neighbors" in output:                # no neighbors found on this interface
+            return {}
+
+        par_int = FastIronDriver.__retrieve_all_locations(output, "Local", 1)[0]
+        chas_id = FastIronDriver.__retrieve_all_locations(output, "Chassis", 3)[0]
+
+        napalm_mapping = {
+            "System description": "sys_des",
+            "System name": "sys_name",
+            "Port ID \(.*\)": "port_de",
+            "Port description": "remote_port_description",
+            "System capabilities": "sys_cap",
+        }
+
+        output_formatted = {}
+
+        for line in output.splitlines():
+            for k,v in napalm_mapping.items():
+                regex = re.compile(k)
+                if re.search(regex, line):
+                    output_formatted[v] = regex.sub("", line).lstrip().rstrip()
+
+        return {
+            'parent_interface': par_int,
+            'remote_chassis_id': chas_id,
+            'remote_system_name': output_formatted["sys_name"],
+            'remote_port': output_formatted["port_de"],
+            'remote_port_description': output_formatted['remote_port_description'],
+            'remote_system_description': output_formatted["sys_des"],
+            'remote_system_capab': output_formatted["sys_cap"],
+            'remote_system_enable_capab': None
+        }
+
+
     def get_lldp_neighbors_detail(self, interface=''):
         """
         Returns a detailed view of the LLDP neighbors as a dictionary
@@ -914,46 +956,13 @@ class FastIronDriver(NetworkDriver):
             * remote_system_enabled_capab (string)
         """
         if interface == '':                         # no interface was entered
-            print("please enter an interface")
-            return None
+            output_dict = {}
+            interface_list = self.get_lldp_neighbors()
+            for interface in interface_list:
+                output_dict[interface] = [self.get_lldp_neighbor_detail(interface=interface)]
+            return output_dict
 
-        output = self.device.send_command('show lldp neighbor detail port ' + interface)
-        output = output.replace(':', ' ')
-        output = output.replace('"', '')
-        output = (output.replace('+', ' '))
-
-        if "No neighbors" in output:                # no neighbors found on this interface
-            return {}
-
-        par_int = FastIronDriver.__retrieve_all_locations(output, "Local", 1)[0]
-        chas_id = FastIronDriver.__retrieve_all_locations(output, "Chassis", 3)[0]
-        sys_nam = FastIronDriver.__retrieve_all_locations(output, "name", 0)[0]
-
-        e_token_sd = output.find("System description") + len("System description")
-        s_token_sc = output.find("System capabilities")
-        e_token_sc = output.find("System capabilities") + len("System capabilities")
-        s_token_ma = output.find("Management address")
-        s_token_la = output.find("Link aggregation")
-        e_token_pd = output.find("Port description") + len("Port description")
-
-        sys_des = output[e_token_sd:s_token_sc]                 # grabs system description
-        sys_cap = output[e_token_sc:s_token_ma]                 # grabs system capability
-        port_de = output[e_token_pd:s_token_la]                 # grabs ports description
-
-        sys_des = FastIronDriver.__unite_strings(sys_des)     # removes excess spaces and n lines
-        sys_cap = FastIronDriver.__unite_strings(sys_cap)
-        port_de = FastIronDriver.__unite_strings(port_de)
-
-        return {interface: [{
-            'parent_interface': par_int,
-            'remote_chassis_id': chas_id,
-            'remote_system_name': sys_nam,
-            'remote_port': port_de,
-            'remote_port_description': '',
-            'remote_system_description': sys_des,
-            'remote_system_capab': sys_cap,
-            'remote_system_enable_capab': None
-        }]}
+        return {interface: [self.get_lldp_neighbor_detail(interface=interface)]}
 
     def cli(self, commands):
 
