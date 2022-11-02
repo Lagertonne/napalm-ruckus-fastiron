@@ -937,11 +937,11 @@ class FastIronDriver(NetworkDriver):
         return {
             'parent_interface': par_int,
             'remote_chassis_id': chas_id,
-            'remote_system_name': output_formatted["sys_name"],
-            'remote_port': output_formatted["port_de"],
-            'remote_port_description': output_formatted['remote_port_description'],
-            'remote_system_description': output_formatted["sys_des"],
-            'remote_system_capab': output_formatted["sys_cap"],
+            'remote_system_name': output_formatted.get("sys_name", ""),
+            'remote_port': output_formatted.get("port_de", ""),
+            'remote_port_description': output_formatted.get('remote_port_description', ""),
+            'remote_system_description': output_formatted.get("sys_des", ""),
+            'remote_system_capab': output_formatted.get("sys_cap", ""),
             'remote_system_enable_capab': None
         }
 
