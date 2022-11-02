@@ -810,11 +810,17 @@ class FastIronDriver(NetworkDriver):
         token = shw_int_neg.find('System Name') + len('System Name') + 1
         my_input = shw_int_neg[token:len(shw_int_neg)]
         my_test = FastIronDriver.__matrix_format(my_input)
-
         for seq in range(0, len(my_test)):
+            if len(my_test[seq]) < 4:
+                remote_hostname = ""
+                remote_port = ' '.join(my_test[seq][2:])
+            else:
+                remote_hostname = my_test[seq][len(my_test[seq])-1]
+                remote_port = my_test[seq][2]
+                
             my_dict.update({my_test[seq][0]: {
-                'hostname': my_test[seq][len(my_test[seq])-1],
-                'port': my_test[seq][3],
+                'hostname': remote_hostname,
+                'port': remote_port,
             }})
 
         return my_dict
